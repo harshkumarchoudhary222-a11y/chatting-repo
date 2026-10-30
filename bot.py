@@ -6,6 +6,7 @@ from collections import deque
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiohttp import web
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
@@ -195,9 +196,24 @@ async def relay_message(message: types.Message):
         logging.error("Message relay failed: %s", e)
         await message.answer("⚠️ I couldn't send that message.")
 
+async def health(request):
+    return web.Response(text="Anonymous Chat Bot is running")
+
+async def start_health_server():
+    app = web.Application()
+    app.router.add_get("/", health)
+    app.router.add_get("/health", health)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.getenv("PORT", "10000"))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logging.info("Health server listening on port %s", port)
+
 async def on_startup(dispatcher):
     me = await bot.get_me()
     logging.info("Anonymous Chat Bot started: @%s", me.username)
+    await start_health_server()
 
 if __name__ == "__main__":
     loop = asyncio.new_event_loop()
