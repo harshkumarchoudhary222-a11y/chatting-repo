@@ -29,7 +29,7 @@ def main_keyboard():
 def chat_keyboard():
     kb = ReplyKeyboardMarkup(resize_keyboard=True, row_width=3)
     kb.add(
-        KeyboardButton("⏭ Next"),
+        KeyboardButton("⏭️ Next"),
         KeyboardButton("🛑 Stop"),
         KeyboardButton("🚨 Report"),
     )
@@ -38,7 +38,11 @@ def chat_keyboard():
 async def send_main_menu(user_id):
     await bot.send_message(
         user_id,
-        "👋 <b>Anonymous Chat</b>\n\nTalk anonymously with a random stranger.\n\nPress <b>Find Stranger</b> to start.",
+        "👋 <b>Welcome to Anonymous Chat</b>\n\n"
+        "🕵️ Talk anonymously with random people.\n"
+        "🔒 Your identity stays private.\n"
+        "🌍 Meet someone new from anywhere.\n\n"
+        "🔎 <b>Find a Stranger</b> to start chatting!",
         reply_markup=main_keyboard(),
     )
 
@@ -58,7 +62,8 @@ async def end_chat(user_id, notify_partner=True):
         try:
             await bot.send_message(
                 partner_id,
-                "❌ <b>Stranger left the chat.</b>\n\nYou can find another stranger below.",
+                "❌ <b>Stranger left the chat.</b>\n\n"
+                "💬 You can find someone new below.",
                 reply_markup=main_keyboard(),
             )
         except Exception as e:
@@ -67,10 +72,14 @@ async def end_chat(user_id, notify_partner=True):
 
 async def find_match(user_id):
     if user_id in partners:
-        await bot.send_message(user_id, "💬 You are already chatting with a stranger.", reply_markup=chat_keyboard())
+        await bot.send_message(
+            user_id,
+            "💬 <b>You are already chatting with a stranger.</b>",
+            reply_markup=chat_keyboard(),
+        )
         return
     if user_id in searching:
-        await bot.send_message(user_id, "🔎 You are already searching for a stranger...")
+        await bot.send_message(user_id, "🔎 <b>You are already searching...</b>")
         return
 
     while waiting_users:
@@ -84,24 +93,47 @@ async def find_match(user_id):
         partners[user_id] = partner_id
         partners[partner_id] = user_id
 
-        await bot.send_message(user_id, "🎉 <b>Stranger found!</b>\n\nYou are now connected anonymously.\nSend a message to start chatting.", reply_markup=chat_keyboard())
-        await bot.send_message(partner_id, "🎉 <b>Stranger found!</b>\n\nYou are now connected anonymously.\nSend a message to start chatting.", reply_markup=chat_keyboard())
+        match_text = (
+            "🎉 <b>Stranger Found!</b>\n\n"
+            "🔒 You are now connected anonymously.\n"
+            "💬 Say hello and start chatting!\n\n"
+            "🛡️ Stay anonymous. Have fun!"
+        )
+
+        await bot.send_message(
+            user_id,
+            match_text,
+            reply_markup=chat_keyboard(),
+        )
+        await bot.send_message(
+            partner_id,
+            match_text,
+            reply_markup=chat_keyboard(),
+        )
         logging.info("MATCH: %s <-> %s", user_id, partner_id)
         return
 
     searching.add(user_id)
     waiting_users.append(user_id)
-    await bot.send_message(user_id, "🔎 <b>Searching for a stranger...</b>\n\nPlease wait. I'll connect you when someone is available.", reply_markup=main_keyboard())
+    await bot.send_message(
+        user_id,
+        "🔎 <b>Looking for a stranger...</b>\n\n"
+        "⏳ Please wait while we find someone for you.",
+        reply_markup=main_keyboard(),
+    )
     logging.info("SEARCHING: %s | queue=%s", user_id, len(waiting_users))
 
 @dp.message_handler(commands=["start"])
 async def start_command(message: types.Message):
     user_id = message.from_user.id
     if user_id in partners:
-        await message.answer("💬 You are already chatting with a stranger.", reply_markup=chat_keyboard())
+        await message.answer(
+            "💬 <b>You are already chatting with a stranger.</b>",
+            reply_markup=chat_keyboard(),
+        )
         return
     if user_id in searching:
-        await message.answer("🔎 You are already searching for a stranger...")
+        await message.answer("🔎 <b>You are already searching...</b>")
         return
     await send_main_menu(user_id)
 
@@ -109,11 +141,11 @@ async def start_command(message: types.Message):
 async def next_command(message: types.Message):
     user_id = message.from_user.id
     if user_id in searching:
-        await message.answer("🔎 You are already searching...")
+        await message.answer("🔎 <b>You are already searching...</b>")
         return
     if user_id in partners:
         await end_chat(user_id, notify_partner=True)
-        await message.answer("⏭ <b>Finding a new stranger...</b>")
+        await message.answer("⏭️ <b>Finding someone new...</b>")
         await find_match(user_id)
         return
     await find_match(user_id)
@@ -123,24 +155,39 @@ async def stop_command(message: types.Message):
     user_id = message.from_user.id
     if user_id in searching:
         await remove_from_queue(user_id)
-        await message.answer("🛑 <b>Search stopped.</b>", reply_markup=main_keyboard())
+        await message.answer(
+            "🛑 <b>Search stopped.</b>\n\n"
+            "🔎 Press <b>Find Stranger</b> to start again.",
+            reply_markup=main_keyboard(),
+        )
         return
     if user_id in partners:
         await end_chat(user_id, notify_partner=True)
-        await message.answer("🛑 <b>Chat ended.</b>", reply_markup=main_keyboard())
+        await message.answer(
+            "🛑 <b>Chat ended.</b>\n\n"
+            "🔎 Press <b>Find Stranger</b> to start again.",
+            reply_markup=main_keyboard(),
+        )
         return
-    await message.answer("You are not currently in a chat.", reply_markup=main_keyboard())
+    await message.answer(
+        "ℹ️ You are not currently in a chat.",
+        reply_markup=main_keyboard(),
+    )
 
 @dp.message_handler(commands=["report"])
 async def report_command(message: types.Message):
     user_id = message.from_user.id
     if user_id not in partners:
-        await message.answer("You are not currently chatting with anyone.")
+        await message.answer("ℹ️ You are not currently chatting with anyone.")
         return
     partner_id = partners.get(user_id)
     logging.warning("REPORT: user %s reported user %s", user_id, partner_id)
     await end_chat(user_id, notify_partner=True)
-    await message.answer("🚨 <b>Report submitted.</b>\n\nThe chat has been ended.", reply_markup=main_keyboard())
+    await message.answer(
+        "🚨 <b>Report submitted.</b>\n\n"
+        "🛑 The chat has been ended.",
+        reply_markup=main_keyboard(),
+    )
 
 @dp.message_handler(content_types=types.ContentTypes.ANY)
 async def relay_message(message: types.Message):
@@ -151,15 +198,15 @@ async def relay_message(message: types.Message):
         await find_match(user_id)
         return
 
-    if text == "⏭ Next":
+    if text == "⏭️ Next":
         if user_id in partners:
             await end_chat(user_id, notify_partner=True)
-            await message.answer("⏭ <b>Finding a new stranger...</b>")
+            await message.answer("⏭️ <b>Finding someone new...</b>")
         elif user_id in searching:
-            await message.answer("🔎 You are already searching...")
+            await message.answer("🔎 <b>You are already searching...</b>")
             return
         else:
-            await message.answer("⏭ <b>Finding a stranger...</b>")
+            await message.answer("🔎 <b>Finding a stranger...</b>")
         await find_match(user_id)
         return
 
@@ -168,17 +215,28 @@ async def relay_message(message: types.Message):
             await remove_from_queue(user_id)
         elif user_id in partners:
             await end_chat(user_id, notify_partner=True)
-        await message.answer("🛑 <b>Chat stopped.</b>\n\nPress 🔎 Find Stranger to start again.", reply_markup=main_keyboard())
+        await message.answer(
+            "🛑 <b>Chat stopped.</b>\n\n"
+            "🔎 Press <b>Find Stranger</b> to start again.",
+            reply_markup=main_keyboard(),
+        )
         return
 
     if text == "🚨 Report":
         if user_id not in partners:
-            await message.answer("You are not currently chatting with anyone.", reply_markup=main_keyboard())
+            await message.answer(
+                "ℹ️ You are not currently chatting with anyone.",
+                reply_markup=main_keyboard(),
+            )
             return
         partner_id = partners.get(user_id)
         logging.warning("REPORT: user %s reported user %s", user_id, partner_id)
         await end_chat(user_id, notify_partner=True)
-        await message.answer("🚨 <b>Report submitted.</b>\n\nThe chat has been ended.", reply_markup=main_keyboard())
+        await message.answer(
+            "🚨 <b>Report submitted.</b>\n\n"
+            "🛑 The chat has been ended.",
+            reply_markup=main_keyboard(),
+        )
         return
 
     if text.startswith("/"):
@@ -186,13 +244,21 @@ async def relay_message(message: types.Message):
 
     partner_id = partners.get(user_id)
     if not partner_id:
-        await message.answer("You are not currently chatting with anyone.\n\nPress <b>Find Stranger</b> to start.", reply_markup=main_keyboard())
+        await message.answer(
+            "💬 <b>You are not currently in a chat.</b>\n\n"
+            "🔎 Press <b>Find Stranger</b> to start.",
+            reply_markup=main_keyboard(),
+        )
         return
     try:
-        await bot.copy_message(chat_id=partner_id, from_chat_id=user_id, message_id=message.message_id)
+        await bot.copy_message(
+            chat_id=partner_id,
+            from_chat_id=user_id,
+            message_id=message.message_id,
+        )
     except Exception as e:
         logging.error("Message relay failed: %s", e)
-        await message.answer("⚠️ I couldn't send that message.")
+        await message.answer("⚠️ <b>I couldn't send that message.</b>")
 
 async def health(request):
     return web.Response(text="Anonymous Chat Bot is running")
